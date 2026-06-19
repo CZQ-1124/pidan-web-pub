@@ -1,10 +1,12 @@
 import base64
+import io
 import json
 import re
 from pathlib import Path
 from typing import Any, Dict
 
 from openai import OpenAI
+from PIL import Image
 
 from services.runtime_config import config_status, get_runtime_config
 
@@ -48,10 +50,22 @@ def _safe_json(text: str, fallback: dict) -> dict:
 
 
 def _image_data_url(image_path: str) -> str:
-    image_bytes = Path(image_path).read_bytes()
-    suffix = Path(image_path).suffix.lower().replace('.', '') or 'jpeg'
-    if suffix == 'jpg':
+    # 手机原图可能有 3–10MB；直接转 base64 会让视觉模型请求非常慢。
+    # 展示版压到最长边 768px、JPEG 质量 75，肉眼教学足够，传输速度明显提升。
+    path = Path(image_path)
+    try:
+        with Image.open(path) as img:
+            img = img.convert('RGB')
+            img.thumbnail((768, 768))
+            buf = io.BytesIO()
+            img.save(buf, format='JPEG', quality=75, optimize=True)
+            image_bytes = buf.getvalue()
         suffix = 'jpeg'
+    except Exception:
+        image_bytes = path.read_bytes()
+        suffix = path.suffix.lower().replace('.', '') or 'jpeg'
+        if suffix == 'jpg':
+            suffix = 'jpeg'
     b64 = base64.b64encode(image_bytes).decode('utf-8')
     return f'data:image/{suffix};base64,{b64}'
 

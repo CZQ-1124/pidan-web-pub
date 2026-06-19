@@ -1,5 +1,4 @@
 import sqlite3
-import pandas as pd
 from config.settings import DB_PATH, SEED_XLSX, SEED_CSV
 
 
@@ -183,10 +182,14 @@ def import_seed_cases(force: bool = False):
     if force:
         conn.execute("DELETE FROM seed_cases")
         conn.commit()
-    if SEED_XLSX.exists():
+    # 公网展示版优先读取 CSV。只有 seed_cases 为空时才导入 pandas，减少进入系统时的冷启动开销。
+    import pandas as pd
+    if SEED_CSV.exists():
+        df = pd.read_csv(SEED_CSV)
+    elif SEED_XLSX.exists():
         df = pd.read_excel(SEED_XLSX, sheet_name="病例主表")
     else:
-        df = pd.read_csv(SEED_CSV)
+        raise FileNotFoundError('未找到 seed_case_library.csv 或 seed_case_library.xlsx')
     df["doctor_review_label"] = df.get("final_confirmed_diagnosis")
     df["doctor_review_risk"] = df.get("referral_level")
     df["is_training_case"] = df.get("usable_for_quiz").fillna("yes").astype(str).str.lower().isin(["yes", "true", "1", "是"]).astype(int)
