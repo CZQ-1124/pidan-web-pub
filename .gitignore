@@ -1,0 +1,13 @@
+.env
+.streamlit/secrets.toml
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+data/*.db
+uploads/**
+!uploads/
+!uploads/images/
+!uploads/audio/
+!uploads/images/.gitkeep
+!uploads/audio/.gitkeep
